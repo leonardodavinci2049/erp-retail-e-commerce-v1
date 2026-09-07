@@ -49,7 +49,6 @@ public/upload
 public/images
 public/slides
 src/core/config-tenant
-/src/data
 /upload
 
 # icons
