@@ -66,6 +66,7 @@ public/favicon.ico
 /API-documentation
 /scripts
 /docs
+/src/data
 
 # multi-tenancy 
 public/upload
