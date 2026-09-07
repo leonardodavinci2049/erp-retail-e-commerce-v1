@@ -1,0 +1,78 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# deploy
+ecosystem.config.js
+.well-known
+
+# multitenancy 
+public/upload
+public/images
+public/slides
+src/core/config-tenant
+/src/data
+/upload
+
+# icons
+public/app-icon-512.png
+public/apple-touch-icon.png
+public/favicon.ico
+
+
+# agent files
+.vscode
+.agents
+.codex/
+
+# project generated files
+/API-documentation
+/scripts
+/docs
+
+# multi-tenancy 
+public/upload
+public/images
+public/slides
+src/core/config-tenant
+/src/app/globals.css
+/src/data
+/upload
