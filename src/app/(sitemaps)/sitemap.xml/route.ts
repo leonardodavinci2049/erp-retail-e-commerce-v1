@@ -1,4 +1,4 @@
-import { unstable_noStore } from "next/cache";
+import { connection } from "next/server";
 import { getSitemapBaseUrl } from "../base-url";
 import { getProductSitemapLocations } from "../product-sitemap";
 import { sitemapServiceUnavailable } from "../sitemap-response";
@@ -8,7 +8,8 @@ import { sitemapServiceUnavailable } from "../sitemap-response";
  * This follows the sitemap index protocol for large sites
  */
 export async function GET(request: Request) {
-  unstable_noStore();
+  // Com Cache Components, aguarda uma requisição antes de consultar a API.
+  await connection();
 
   const baseUrl = getSitemapBaseUrl(request);
 

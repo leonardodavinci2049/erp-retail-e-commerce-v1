@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
-import { unstable_noStore } from "next/cache";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getSitemapBaseUrl } from "../../base-url";
 import {
   getProductSitemapPages,
@@ -15,7 +15,8 @@ interface RouteContext {
 }
 
 export async function GET(request: Request, { params }: RouteContext) {
-  unstable_noStore();
+  // Com Cache Components, aguarda uma requisição antes de consultar a API.
+  await connection();
 
   const { id } = await params;
   const sitemapIndex = /^\d+$/.test(id) ? Number(id) : Number.NaN;
