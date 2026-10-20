@@ -64,7 +64,7 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
         port: "5573",
         pathname: "/**",
-      }
+      },
     ],
   },
 };
