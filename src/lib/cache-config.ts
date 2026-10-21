@@ -14,6 +14,8 @@ export const CACHE_TAGS = {
   product: (id: string) => `product-${id}`,
   productGallery: (id: string) => `product-gallery-${id}`,
   category: (id: string) => `category-${id}`,
+  appConfig: (id: string) => `app-config-${id}`,
+  appMenuType: (type: string) => `app-menu-type-${type}`,
 
   // Static tags
   products: "products",

@@ -1,63 +1,98 @@
-# Project: Next.js 16 E-commerce (Mundial Megastore)
+# Repository Guidelines
 
-## Tech Stack & Commands
+<!-- BEGIN:nextjs-agent-rules -->
 
-- **Next.js 16** (App Router), **React 19**, **TypeScript 6**, **Tailwind CSS 4**, **Biome 2** (linter/format), **Zod 4**
-- **Package manager**: pnpm (pnpm-lock.yaml present)
+# This is NOT the Next.js you know
 
-## Build and Development Commands
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-- `pnpm install` installs locked dependencies with pnpm 11.
-- `pnpm dev` starts Next.js and loads `.env` through `dotenv-cli`.
-- `pnpm build` creates and validates the production build.
-- `pnpm start` serves that build using `.env`.
-- `pnpm lint` checks the repository with Biome; `pnpm format` formats it.
-- `pnpm exec tsc --noEmit` runs strict TypeScript checking.
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
 
 ## Architecture
 
+Next.js v16.3.5 App Router monolith. Single-package (not a monorepo)
+
 - **Frontend-only app** consuming data from external NestJS APIs
-- External APIs:
+- **No middleware.ts** — Next.js v16.3.5 not use middleware file
+- **Prefer Server Components** When client-side behavior is required, isolate it in a new reusable Client Component in its own file and keep the client boundary as low as possible.
+- **Route pages must always start with a Server Component** delegate only the interactive parts to nested Client Components.
 
-## Routing
+### Main technologies and dependencies
 
-- App Router with route groups:
-  - `(home)` — Home page (`page.tsx`, `actions.ts`, `_components/`)
-  - `(catalog)` — Catalog (shared `layout.tsx`):
-    - `/products` — Product listing
-    - `/product/[...slug]` — Product detail
-    - `/category/[...slug]` — Category page (has `not-found.tsx`)
-  - `(company)` — Company pages (shared `layout.tsx` with CompanyHeader/Footer/Logo, own `error.tsx` + `loading.tsx`):
-    - `/about`, `/antispam`, `/contact`, `/privacy`, `/return`, `/terms`
-  - `(sitemaps)` — 7 sitemap routes: `sitemap.xml`, `sitemap-categories.xml`, `sitemap-products-{0..3}.xml`, `sitemap-static.xml`
-- Root files: `src/app/layout.tsx`, `not-found.tsx`, `robots.ts`
-- Path alias: `@/*` resolves to `./src/*` (configured in tsconfig.json)
+- **Package manager**: pnpm (lockfile: `pnpm-lock.yaml`)
+- **React v19.3.0** with **React Compiler** enabled (`next.config.ts: reactCompiler: true`)
+- **Tailwind CSS v4.3.3** via `@tailwindcss/postcss` (no `tailwind.config.*`)
+- **shadcn/ui v4.21.0** — radix-luma style, path alias `@/components/ui`
+- **@biomejs/biome v2.5.13** for lint + format (not ESLint/Prettier). Config: `biome.json`. Uses `biome check` and `biome format --write`.
+- **Zod 4.6.4** for validation
+- **better-auth v1.6.25** for auth (MySQL-backed, with E-mail e Password, admin plugin, Resend email)
+- **mysql2 v3.24.4** for local DB (singleton pool in `DatabaseService`)
+- **axios v1.20.0** for external API calls (server-only)
+- **Path alias**: `@/*` → `./src/*`
 
-## Caching (Next.js 16 `use cache`)
+## Placement of New Components and Server Actions
 
-- Cached services use `"use cache"` directive with `cacheLife` profiles and `cacheTag` invalidation
-- Cache profiles (defined in `next.config.ts`):
-  - `hours` (stale: 10min, revalidate: 2min, expire: 10min) — navigation
-  - `quarter` (stale: 15min, revalidate: 5min, expire: 15min) — categories menu
-  - `frequent` (stale: 5min, revalidate: 1min, expire: 5min) — products
-  - `daily` (stale: 24h, revalidate: 1h, expire: 24h) — footer, static content
-- Cache tags (defined in `src/lib/cache-config.ts`): `product(id)`, `productGallery(id)`, `category(id)`, `products`, `categories`, `navigation`, `banners`, `footer`
-- Connection errors during build are expected/suppressed (API may be unavailable)
-- **Mixed pattern**: `src/app/(home)/actions.ts` combines `"use server"` with `"use cache"` inside `fetchSectionProducts` (uses `cacheLife("frequent")` and `cacheTag(CACHE_TAGS.products)`)
+Keep route-specific files close to the routes that use them so a route can be copied to another project with its local components and Server Actions.
 
-## Styling & Components
+- Create a component used by only one route inside that route's `_components` folder, alongside its `page.tsx` or `layout.tsx`.
+- Create a component shared by two or more routes inside an `_components` folder at the nearest common ancestor directory of those routes. Keep it within the smallest route scope that includes all its consumers.
+- Use `src/components` only for installed components or components shared across the entire application. Sharing a component between a few routes alone does not justify placing it there.
+- Apply the same scope rules to Server Actions: create actions used by one route in its `_actions` folder, alongside its `page.tsx` or `layout.tsx`; create actions shared by multiple routes in an `_actions` folder at their nearest common ancestor directory. Reserve `src/app/actions` for application-wide Server Actions.
+- Use the exact folder names `_components` and `_actions` (plural) for new files; migrate existing files only when explicitly requested.
+- Avoid importing route-specific components or Server Actions from a sibling route. When sharing becomes necessary, place the shared files at the nearest common ancestor of the consuming routes.
 
-- **Tailwind CSS 4** via `@tailwindcss/postcss` (no tailwind.config.js — Tailwind 4 syntax)
-  - `@import "tailwindcss"` + `@import "tw-animate-css"` in globals.css
-  - Uses **oklch** color space for theme colors (not hsl)
-  - Dark mode via `@custom-variant dark (&:is(.dark *))`
-  - CSS declares fonts `Inter` / `Playfair Display` / `Roboto Mono`, but `layout.tsx` loads **Geist** and **Geist_Mono** via `next/font/google` — the CSS vars are unused overrides from shadcn scaffolding
-- **shadcn/ui** configured in `components.json` (style: "new-york", RSC: true, base color: "stone", icons: lucide)
-- **Biome** configuration (`biome.json`):
-  - 2-space indentation, space style
-  - Recommended rules + Next.js + React domains
-  - `noUnknownAtRules` off (for Tailwind)
-  - Auto organize imports via assist
+
+
+## Build and Development Commands
+
+All scripts wrap through `dotenv -e .env` — **never** run `next` directly.
+
+The port used by the project when running `pnpm dev` is defined by the `PORT` environment variable.
+
+```shell
+pnpm dev          # dev server (reads .env)
+pnpm build        # production build (reads .env)
+pnpm start        # start production server (reads .env)
+pnpm lint         # biome check
+pnpm format       # biome format --write
+```
+
+No testing framework or test runner is configured in this repository. Validation is limited to linting with `pnpm lint`, the production build with `pnpm build`, and TypeScript type checking performed as part of that build. There is no standalone `typecheck` script.
+
+## Git workflow
+
+- The project follows **git flow**.
+- The base branch is `develop` — never work on `main`.
+- For every new task that results in file changes, create a feature branch from a clean, up-to-date `develop` before editing files.
+- If the user provides a branch name or task number, use it when it is compatible with the `feature/` prefix (for example, `feature/featr-NNN`).
+- If the user does not provide a branch name or task number, do not stop only to ask for one. Derive a concise, descriptive kebab-case name from the task and create `feature/<task-slug>` (for example, `feature/use-manager-create-services`).
+- Analysis-only work, continuation of an existing feature, or an explicit user instruction to work on the current branch are exceptions to automatic branch creation.
+- If `develop` has uncommitted changes from previous work, do not stash, move, discard, or include them in a new feature. Ask the user to commit or otherwise resolve them before creating the branch.
+- Do not merge, finish, delete, or push branches without explicit user authorization.
+- The source of truth for project versioning is the `"version"` property in `package.json` (e.g. `"version": "1.1.2"`). The patch value must be incremented on each release and assigned to the release name, e.g. `release/1.8.0`, `hotfix/1.8.1`.
+
+
+## Next.js Agent Workflow
+
+- Keep project-specific instructions outside the Next.js-managed agent rules block so `next dev` does not replace them.
+- Use the version-matched documentation under `node_modules/next/dist/docs/` as the primary reference for Next.js APIs, conventions, and implementation patterns. Use the online Next.js documentation for linked `/docs/messages` error pages that are not bundled.
+- When `pnpm dev` is already running, connect to the existing server using the port defined by `PORT` and the runtime information in `.next/dev/lock`; do not start a duplicate development server or terminate the existing process without explicit authorization.
+- Use the Next.js MCP tools when available to validate the project, verify framework conventions, gather additional technical context, and inspect routes, server logs, runtime errors, and compilation issues. Prefer `get_errors`, `get_compilation_issues`, and `compile_route` for focused development diagnostics.
+- Treat MCP compilation checks as targeted development feedback, not as a replacement for the repository's final `pnpm lint` and `pnpm build` validation.
+- For UI and browser behavior, use `agent-browser` when available to inspect the DOM, console, network activity, Web Vitals, and, with React DevTools enabled, the component tree and pending Suspense boundaries.
+- Let reported Next.js errors drive the correction: read the linked `Learn more` page, compare the documented alternatives and trade-offs, apply the appropriate canonical pattern, and verify the result at runtime.
+- When a production prerendering error does not provide a useful source trace, pass `--debug-prerender` through the project's `pnpm build` wrapper instead of invoking `next` directly.
+- Use an appropriate installed Next.js Skill for multi-step framework workflows. Prefer `next-dev-loop` for iterative runtime verification when it is available; installing a new Skill still requires explicit user authorization.
+
+
+
+## Before committing
+
+1. `pnpm lint` (Biome check — will auto-organize imports)
+2. `pnpm build` (catches type errors — no separate typecheck command)
+
 
 ## SEO
 
@@ -68,24 +103,36 @@
 - Google Analytics via `src/components/analytics/GoogleAnalytics.tsx` (env: NEXT_PUBLIC_GA_MEASUREMENT_ID)
 - GA4 events in `src/components/analytics/events.ts`
 
-## Types (`src/types/`)
+## Naming conventions
 
-- `product.ts` — canonical types including `ProductWithMetadata` (use this as the main product type)
-- `cart.ts` — `CartItem`, `PaymentMethod` ("PIX" | "Cartão" | "Dinheiro"), `CartState`, `CartActions`, `CartStore`
-- `types.ts` — `Brand`, `FilterOptions`, `SortOption`, `ViewMode`, legacy duplicates of `Product`/`Category`
-- `home-type.ts`, `home.ts` — home page types, also have legacy `Product` duplicates
-- `api-assets.ts` — `FileAsset`, `FileVersion`, `FileUrls`, etc.
-- `account.ts` — `Customer`, `Order`, `DashboardStat`, `QuickAction`, `SalesConsultant`
-- **Warning**: There are 3 separate `Product` interfaces across `product.ts`, `types.ts`, `home.ts` with different shapes — always use **`ProductWithMetadata`** from `product.ts`
-- **Note**: `home-type copy.ts` is a stale duplicate — do not use
+- **Files and folders**: kebab-case (e.g., `app-sidebar.tsx`, `user-profile/`)
+- **Component exports**: **ALWAYS PascalCase** — every React component must be named and exported in PascalCase (e.g., `export function AppSidebar()`, `export function UserProfileCard()`).
+- **Functions/hooks**: camelCase with `use` prefix for hooks
+- **Types/Interfaces**: PascalCase, no `I` prefix
 
 ## Important Constraints
 
-- **Server-only imports**: Most services in `src/services/api-main/` use `import "server-only"` — exception: `brand-service-api.ts` lacks it
-- **Assets API service** (`src/services/api-assets/assets-api-service.ts`) uses native `fetch` (not Axios) and does NOT have `import "server-only"`; the cached layer (`gallery-cached-service.ts`) does have it
-- **Client data fetching must go through API routes or Server Actions** (to avoid exposing API keys)
-- **Product slug format**: `{product-name}-{id}` (ID extracted from last segment after last `-`)
-- **Category system**: Uses `TAXONOMY_ENDPOINTS` (15 endpoints in `api-constants.ts`). `CATEGORY_ENDPOINTS` is legacy — prefer taxonomy
-- **Category menu type ID**: 1 (hierarchical menu), parent_id: 0 (root)
-- **Brazilian locale**: app uses `pt-BR`, prices in BRL, addresses via CEP lookup. `src/core/constants/brazilian-states.ts` has all states with IBGE codes
-- **No middleware.ts** — there is no Next.js middleware file in this project
+- The default development language is US English. Code comments, error messages, documentation, and file names should use English.
+- User-facing messages, labels, and interface text: Brazilian Portuguese (Brazilian audience).
+- A closer `AGENTS.md`/`AGENTS.override.md` may supplement or override these rules; read the most specific instructions first.
+
+## Security and Env
+
+- Never read private variables in Client Components; on the client, use only `NEXT_PUBLIC_*`.
+- `.env` and `.env.local` are secrets. Do not log, copy, or expose values.
+- Authentication does not replace authorization. Verify ownership, organization, and permissions in actions/services that mutate or return sensitive data.
+- Do not import server-only modules in Client Components.
+- Client-facing messages must be safe and generic; internal details belong in logs.
+
+## Verification
+
+- Documentation change: review Markdown; run `pnpm lint` if the change touches code examples or config.
+- TS/React change: run `pnpm lint`.
+- Route, build, Server Action, cache, config, or integration change: run `pnpm build` when viable.
+- Visual/interactive change: validate in the browser/dev server; if the Next.js MCP is available, use it for errors, routes, and logs.
+- If you cannot run an expected verification, state the reason in the final summary.
+
+
+## Communication and Delivery
+
+- After completing a task, suggest one to three related follow-up tasks that represent the natural next steps. Do not execute these additional tasks without my authorization.
