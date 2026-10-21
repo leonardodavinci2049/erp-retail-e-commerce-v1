@@ -63,6 +63,7 @@ public/favicon.ico
 
 # project generated files
 /API-documentation
+/Api-documentation-assets
 /scripts
 /scripts-local
 /docs
