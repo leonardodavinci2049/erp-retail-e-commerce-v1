@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import { envs } from "@/core/config/envs";
 import { CACHE_TAGS } from "@/lib/cache-config";
@@ -7,6 +7,8 @@ import {
   type RevalidationRequest,
   revalidationRequestSchema,
 } from "@/lib/revalidation-contract";
+
+import { writeLocalLog } from "@/utils/write-local-log";
 
 function isAuthorized(request: Request): boolean {
   const expectedSecret = envs.REVALIDATE_SECRET;
@@ -154,24 +156,59 @@ function getRevalidationTags(request: RevalidationRequest): string[] {
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const requestId = randomUUID();
+  const startedAt = performance.now();
+  const context = { requestId, method: "POST", path: "/api/revalidate" };
+  let status = 500;
+  let outcome = "internal_error";
+  let payload: RevalidationRequest | undefined;
+  const invalidatedTags: string[] = [];
 
-  const parsedRequest = await parseRequest(request);
-  if (!parsedRequest.success) {
-    return parsedRequest.response;
-  }
+  await writeLocalLog("revalidate.received", context);
 
-  const tags = [...new Set(getRevalidationTags(parsedRequest.data))];
-  for (const tag of tags) {
-    revalidateTag(tag, { expire: 0 });
-  }
+  try {
+    if (!isAuthorized(request)) {
+      status = 401;
+      outcome = "unauthorized";
+      return Response.json({ error: "Unauthorized" }, { status });
+    }
 
-  return Response.json({
-    revalidated: true,
-    module: parsedRequest.data.module,
-    scope: parsedRequest.data.scope,
-    tags,
-  });
+    const parsedRequest = await parseRequest(request);
+    if (!parsedRequest.success) {
+      status = parsedRequest.response.status;
+      outcome = "invalid_request";
+      return parsedRequest.response;
+    }
+
+    payload = parsedRequest.data;
+    const tags = [...new Set(getRevalidationTags(payload))];
+    for (const tag of tags) {
+      revalidateTag(tag, { expire: 0 });
+      invalidatedTags.push(tag);
+    }
+
+    const response = Response.json({
+      revalidated: true,
+      module: payload.module,
+      scope: payload.scope,
+      tags,
+    });
+    status = 200;
+    outcome = "revalidated";
+    return response;
+  } finally {
+    // Only validated payloads are logged; headers and raw bodies are excluded.
+    await writeLocalLog(
+      "revalidate.completed",
+      {
+        ...context,
+        status,
+        outcome,
+        durationMs: Math.round(performance.now() - startedAt),
+        payload,
+        invalidatedTags,
+      },
+      status >= 500 ? "error" : status >= 400 ? "warn" : "info",
+    );
+  }
 }
