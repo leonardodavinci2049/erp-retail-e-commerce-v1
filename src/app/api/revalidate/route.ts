@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { revalidateTag } from "next/cache";
+import { envs } from "@/core/config/envs";
 import { CACHE_TAGS } from "@/lib/cache-config";
 import {
   LEGACY_REVALIDATION_REQUEST,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/revalidation-contract";
 
 function isAuthorized(request: Request): boolean {
-  const expectedSecret = process.env.REVALIDATE_SECRET;
+  const expectedSecret = envs.REVALIDATE_SECRET;
   const providedSecret = request.headers.get("x-revalidate-secret");
 
   if (!expectedSecret || !providedSecret) {
@@ -87,6 +88,13 @@ function getAppConfigTags(request: AppConfigRequest): string[] {
   }
 }
 
+/**
+ * Every taxonomy read in this project is tagged with `categories`, including
+ * menu, slug lookups and details cached by ID or slug. A targeted detail
+ * request therefore also expires the collective tag; otherwise entries cached
+ * by slug (the primary category route) would stay stale after an ID-only
+ * revalidation.
+ */
 function getTaxonomyTags(request: TaxonomyRequest): string[] {
   switch (request.scope) {
     case "taxonomy-menu":
@@ -94,12 +102,21 @@ function getTaxonomyTags(request: TaxonomyRequest): string[] {
     case "taxonomy-details":
       return request.taxonomyId === undefined
         ? [CACHE_TAGS.categories]
-        : [CACHE_TAGS.category(String(request.taxonomyId))];
+        : [
+            CACHE_TAGS.categories,
+            CACHE_TAGS.category(String(request.taxonomyId)),
+          ];
     case "all":
       return TAXONOMY_ALL_TAGS;
   }
 }
 
+/**
+ * Listings, sections, details and related products all share the `products`
+ * tag, so any detail request also expires the public product caches. This
+ * project has no dedicated slug tag: only the gallery tag can be narrowed by
+ * `productId`.
+ */
 function getProductDetailTags(request: ProductsRequest): string[] {
   const tags: string[] = [CACHE_TAGS.products];
 
