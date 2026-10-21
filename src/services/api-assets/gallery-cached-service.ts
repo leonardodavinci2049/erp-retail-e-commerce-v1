@@ -34,7 +34,7 @@ export async function getProductGallery(
 ): Promise<GalleryImage[]> {
   "use cache";
   cacheLife("hours");
-  cacheTag(CACHE_TAGS.productGallery(productId));
+  cacheTag(CACHE_TAGS.productGalleries, CACHE_TAGS.productGallery(productId));
 
   try {
     const response = await assetsApiService.getEntityGallery({
