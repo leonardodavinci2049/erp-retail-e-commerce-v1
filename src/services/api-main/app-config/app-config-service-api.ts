@@ -1,6 +1,6 @@
 import "server-only";
 
-import { serverEnvs } from "@/core/config/envs.server";
+import { envs } from "@/core/config";
 import {
   API_STATUS_CODES,
   APP_CONFIG_ENDPOINTS,
@@ -41,11 +41,11 @@ export class AppConfigServiceApi extends BaseApiService {
     additionalData: Record<string, unknown> = {},
   ): Record<string, unknown> {
     return {
-      pe_app_id: serverEnvs.APP_ID,
-      pe_store_id: serverEnvs.STORE_ID,
+      pe_app_id: envs.APP_ID,
+      pe_store_id: envs.STORE_ID,
       ...additionalData,
-      pe_system_client_id: serverEnvs.SYSTEM_CLIENT_ID,
-      pe_organization_id: serverEnvs.ORGANIZATION_ID,
+      pe_system_client_id: envs.SYSTEM_CLIENT_ID,
+      pe_organization_id: envs.ORGANIZATION_ID,
     };
   }
 
