@@ -30,10 +30,21 @@ const logger = createLogger("AssetsApiService");
 export class AssetsApiService {
   private readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly systemClientId: number;
 
   constructor() {
     this.baseUrl = envs.EXTERNAL_API_ASSETS_URL;
     this.apiKey = envs.API_KEY;
+    this.systemClientId = envs.SYSTEM_CLIENT_ID;
+  }
+
+  private withSystemClientId<T extends object>(
+    request: T,
+  ): { pe_system_client_id: number } & T {
+    return {
+      pe_system_client_id: this.systemClientId,
+      ...request,
+    };
   }
 
   /**
@@ -109,6 +120,7 @@ export class AssetsApiService {
     try {
       // Create FormData for multipart/form-data
       const formData = new FormData();
+      formData.append("pe_system_client_id", String(this.systemClientId));
       formData.append("file", request.file);
       formData.append("entityType", request.entityType);
       formData.append("entityId", request.entityId);
@@ -161,7 +173,7 @@ export class AssetsApiService {
       const response = await fetch(`${this.baseUrl}/file/v1/list-files`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify(request),
+        body: JSON.stringify(this.withSystemClientId(request)),
       });
 
       return this.handleResponse<ListFilesResponse>(response);
@@ -184,7 +196,7 @@ export class AssetsApiService {
       const response = await fetch(`${this.baseUrl}/file/v1/find-file`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify(request),
+        body: JSON.stringify(this.withSystemClientId(request)),
       });
 
       return this.handleResponse<FileAsset>(response);
@@ -209,7 +221,7 @@ export class AssetsApiService {
       const response = await fetch(`${this.baseUrl}/file/v1/entity-gallery`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify(request),
+        body: JSON.stringify(this.withSystemClientId(request)),
       });
 
       return this.handleResponse<EntityGalleryResponse>(response);
@@ -234,7 +246,7 @@ export class AssetsApiService {
       const response = await fetch(`${this.baseUrl}/file/v1/delete-file`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify(request),
+        body: JSON.stringify(this.withSystemClientId(request)),
       });
 
       return this.handleResponse<DeleteFileResponse>(response);
@@ -264,7 +276,7 @@ export class AssetsApiService {
         {
           method: "POST",
           headers: this.getHeaders(),
-          body: JSON.stringify(request),
+          body: JSON.stringify(this.withSystemClientId(request)),
         },
       );
 
