@@ -17,8 +17,11 @@ export const CACHE_TAGS = {
 
   // Static tags
   products: "products",
+  productGalleries: "product-galleries",
   categories: "categories",
   navigation: "navigation",
+  appConfigs: "app-configs",
+  appMenus: "app-menus",
   banners: "banners",
   footer: "footer",
 } as const;
