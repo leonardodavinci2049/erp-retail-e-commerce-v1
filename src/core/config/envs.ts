@@ -196,6 +196,7 @@ const envsSchema = z.object({
   API_KEY: z.string().min(1, "API_KEY is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL must be a valid URL"),
+  REVALIDATE_SECRET: z.string().min(1, "REVALIDATE_SECRET is required"),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
@@ -389,6 +390,7 @@ if (typeof window === "undefined") {
     API_KEY: "",
     BETTER_AUTH_SECRET: "",
     BETTER_AUTH_URL: "",
+    REVALIDATE_SECRET: "",
     GOOGLE_CLIENT_ID: "",
     GOOGLE_CLIENT_SECRET: "",
     RESEND_API_KEY: "",
@@ -500,6 +502,7 @@ export const envs = {
   API_KEY: envVars.API_KEY,
   BETTER_AUTH_SECRET: envVars.BETTER_AUTH_SECRET,
   BETTER_AUTH_URL: envVars.BETTER_AUTH_URL,
+  REVALIDATE_SECRET: envVars.REVALIDATE_SECRET,
 
   // Google OAuth
   GOOGLE_CLIENT_ID: envVars.GOOGLE_CLIENT_ID,

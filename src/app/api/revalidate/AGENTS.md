@@ -2,8 +2,9 @@
 
 Use these instructions when changing or integrating the revalidation endpoint
 in this directory. Keep this guidance aligned with [`route.ts`](./route.ts),
-[`revalidation-contract.ts`](../../../lib/revalidation-contract.ts), and, when
-available, the [integration guide](../../../../docs/webhooks/revalidation-integration-guide.md).
+[`revalidation-contract.ts`](../../../lib/revalidation-contract.ts),
+[`cache-config.ts`](../../../lib/cache-config.ts) and
+[`envs.ts`](../../../core/config/envs.ts).
 
 ## Endpoint contract
 
@@ -12,8 +13,9 @@ available, the [integration guide](../../../../docs/webhooks/revalidation-integr
   each cache scope.
 - Send `Content-Type: application/json` and the `x-revalidate-secret` header.
   Its value must match the receiver's `REVALIDATE_SECRET`.
-- Keep the secret in server-side configuration. Never put it in a URL, browser
-  request, response, source control, or logs.
+- `REVALIDATE_SECRET` is required and validated in
+  `src/core/config/envs.ts`. Keep it in server-side configuration. Never put it
+  in a URL, browser request, response, source control, or logs.
 - New callers must send an explicit JSON object with `module` and `scope`. The
   receiver accepts a blank body for legacy `app-config/all` behavior, but do
   not use that compatibility behavior in new integrations.
@@ -26,17 +28,18 @@ receiver URL.
 | Need | Payload | Invalidated tags |
 | --- | --- | --- |
 | Clear all configuration caches | `{"module":"app-config","scope":"configs"}` | `app-configs` |
-| Clear product and image gallery caches | `{"module":"products","scope":"all"}` | `product-wholesale-list`, `product-wholesale-details`, `product-galleries`, `product-wholesale-sections` |
-| Clear the category menu cache | `{"module":"taxonomy","scope":"taxonomy-menu"}` | `product-wholesale-taxonomy-menu` |
+| Clear product and image gallery caches | `{"module":"products","scope":"all"}` | `products`, `product-galleries` |
+| Clear the category menu cache | `{"module":"taxonomy","scope":"taxonomy-menu"}` | `categories`, `navigation` |
 
 `app-config/all` is a superset of `configs` and also clears application menus.
-`products/all` also clears the home product sections. Neither of them reaches
-the category taxonomy cache, and `taxonomy/taxonomy-menu` does not reach
-products.
+In this project the product caches are collective: `products/all` and almost
+every `products` scope clear listings, sections, details and related products
+at once. Taxonomy scopes are also collective because every taxonomy entry is
+tagged with `categories`.
 
 ## Accepted payloads
 
-The former `product-wholesale` module is not accepted.
+Only the `app-config`, `products` and `taxonomy` modules are accepted.
 
 `app-config` accepts these scopes:
 
@@ -70,12 +73,13 @@ The former `product-wholesale` module is not accepted.
 `productId` and `productSlug` are valid only with `product-detail`. `taxonomyId`
 is valid only with `taxonomy-details`. IDs must be positive integers; slugs must
 be non-empty after trimming and no longer than 255 characters. The schema is
-strict: reject extra fields, arrays of scopes, arbitrary cache tags, and
+strict: it rejects extra fields, arrays of scopes, arbitrary cache tags, and
 identifiers supplied with `scope: "all"`.
 
 ## Configuration cache (`app-config`)
 
-Controls `src/services/api-main/app-config/app-config-cached-service.ts`.
+Controls `src/services/api-main/app-config/app-config-cached-service.ts`. The
+tag values come from `CACHE_TAGS` in `src/lib/cache-config.ts`.
 
 | Scope | Invalidated tags | Covered reads |
 | --- | --- | --- |
@@ -88,66 +92,70 @@ Instructions:
 - Send the webhook only after the configuration or menu write is confirmed.
 - Use `configs` for application settings and `menus` for application navigation
   menus. Use `all` only when both groups changed in the same operation.
-- Configuration entries are tagged collectively, including by-ID reads, so
-  there is no per-configuration payload. The same applies to menus by type.
+- Configuration entries are tagged collectively, including by-ID reads
+  (`app-config-<id>`), so there is no per-configuration payload. The same
+  applies to menus by type (`app-menu-type-<type>`).
 - Application menus are not category menus. Category changes belong to the
   `taxonomy` module below.
 
 ## Product and image gallery cache (`products`)
 
-Controls `src/services/api-main/product-wholesale/product-wholesale-cached-service.ts`
-and `src/services/api-assets/gallery-cached-service.ts`.
+Controls `src/services/api-main/product/product-web-cached-service.ts` and
+`src/services/api-assets/gallery-cached-service.ts`.
 
 | Scope | Invalidated tags | Covered reads |
 | --- | --- | --- |
-| `product-list` | `product-wholesale-list` | Public listings, including search, filters, and pagination |
-| `product-sections` | `product-wholesale-sections` | Public product sections, such as the home sections |
-| `product-detail` without identifiers | `product-wholesale-details`, `product-galleries` | All public details and all galleries |
-| `product-detail` with `productId` | `product-wholesale-product-<id>`, `product-gallery-<id>` | Detail cached by ID and that product's gallery |
-| `product-detail` with `productSlug` | `product-wholesale-product-<slug>`, `product-galleries` | Detail cached by slug and all galleries |
-| `product-detail` with both | Both detail tags and `product-gallery-<id>` | Both detail entries and that product's gallery |
-| `all` | `product-wholesale-list`, `product-wholesale-details`, `product-galleries`, `product-wholesale-sections` | Every public read in this module and every product gallery |
+| `product-list` | `products` | Public listings, including search, filters, and pagination |
+| `product-sections` | `products` | Home product sections |
+| `product-detail` without identifiers | `products`, `product-galleries` | All public details and all galleries |
+| `product-detail` with `productId` | `products`, `product-<id>`, `product-gallery-<id>` | Public details plus that product's gallery |
+| `product-detail` with `productSlug` | `products`, `product-galleries` | Public details and all galleries |
+| `product-detail` with both | `products`, `product-<id>`, `product-gallery-<id>` | Public details plus that product's gallery |
+| `all` | `products`, `product-galleries` | Every public read in this module and every product gallery |
 
 Instructions:
 
+- Listings, sections, details, related products, and category product listings
+  all share the `products` tag. Any scope that returns `products` refreshes all
+  of them; there is no narrower detail-only invalidation in this project.
+- Use `product-detail` with `productId` for secondary gallery images only. The
+  optional `productId` narrows the gallery tag (`product-gallery-<id>`); it does
+  not narrow the product detail caches.
+- This project has no dedicated product slug tag. With only `productSlug`, the
+  receiver expires `product-galleries`, which affects every product. Send
+  `productId` whenever the caller knows it.
 - Use `all` after price, stock, or primary-image changes, because those changes
   can affect listings, details, galleries, and home sections.
-- Use `product-detail` with `productId` for secondary gallery images only. Add
-  `productSlug` whenever the product can also be read by slug, since the two
-  detail entries use different tags.
-- `productId` is the only way to invalidate a single gallery. With only
-  `productSlug`, the receiver cannot resolve the ID and expires
-  `product-galleries`, which affects every product.
-- Send the slug exactly as it appears in `/product/<slug>`. The contract trims
-  whitespace but does not normalize case or accents, and tags are case-sensitive.
 - `products/all` does not invalidate taxonomy or configuration caches.
 - Authenticated product reads do not use the shared public cache and are not
   affected by this module. The gallery cache is still shared and is invalidated.
 
 ## Category taxonomy cache (`taxonomy`)
 
-Controls the public taxonomy menu and taxonomy detail caches in
-`product-wholesale-cached-service.ts`.
+Controls `src/services/api-main/category/category-web-cached-service.ts`.
 
 | Scope | Invalidated tags | Covered reads |
 | --- | --- | --- |
-| `taxonomy-menu` | `product-wholesale-taxonomy-menu` | Public category menu used by the header, catalog, and home |
-| `taxonomy-details` without `taxonomyId` | `product-wholesale-taxonomy-details` | All public taxonomy details |
-| `taxonomy-details` with `taxonomyId` | `product-wholesale-taxonomy-<id>` | That taxonomy's detail entry |
-| `all` | `product-wholesale-taxonomy-menu`, `product-wholesale-taxonomy-details` | Menu and all taxonomy details |
+| `taxonomy-menu` | `categories`, `navigation` | Public category menu used by the header, catalog, and home |
+| `taxonomy-details` without `taxonomyId` | `categories` | All taxonomy entries |
+| `taxonomy-details` with `taxonomyId` | `categories`, `category-<id>` | All taxonomy entries |
+| `all` | `categories`, `navigation` | Menu and all taxonomy entries |
 
 Instructions:
 
+- Every taxonomy read is tagged with `categories`, including menu, slug lookups
+  (`getCategoryBySlug`), and details cached by ID or slug. Because the category
+  detail route resolves primarily by slug, a targeted `category-<id>` tag alone
+  would leave the slug entry stale; the endpoint therefore always includes
+  `categories` for `taxonomy-details`.
+- `taxonomy-menu` also includes `navigation`, which is used only by the menu.
+  Revalidating `categories` clears the menu, slug lookups and details as well.
 - Use `taxonomy-menu` when the category tree, names, order, or visibility change
   and the header/catalog menu must refresh.
-- Use `taxonomy-details` with `taxonomyId` when only one category's metadata
-  changed. Omit `taxonomyId` only when many categories changed at once.
 - `taxonomy/all` does not invalidate products. When the same operation also
   changes product listing content, send a separate `products` request.
-- The storefront menu is cached by the `product-wholesale` module. The cached
-  menu still present in `src/services/api-main/taxonomy-base/taxonomy-base-cached-service.ts`
-  uses different tags and is not wired to this scope; do not rely on it for
-  webhook invalidation without aligning its tags first.
+- There is no `taxonomy-base` cached service in this project; do not reference
+  one when documenting webhook behavior.
 
 ## Global invalidation behavior
 
@@ -175,7 +183,6 @@ Instructions:
 - Do not claim that the webhook updates already-open browser tabs, invalidates
   browser/CDN image caches, repairs data inconsistencies, or confirms a later
   read. Those behaviors are outside this endpoint's contract.
-
-For additional operation mapping and integration context, consult the local
-[revalidation integration guide](../../../../docs/webhooks/revalidation-integration-guide.md)
-when it is available.
+- The local verification script lives in `scripts-local/revalidate-check.mjs`;
+  that directory is gitignored and its expected tags must be updated whenever
+  the mapping in `route.ts` changes.
