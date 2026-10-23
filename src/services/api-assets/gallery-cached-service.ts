@@ -33,7 +33,7 @@ export async function getProductGallery(
   productId: string,
 ): Promise<GalleryImage[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("gallery");
   cacheTag(CACHE_TAGS.productGalleries, CACHE_TAGS.productGallery(productId));
 
   try {

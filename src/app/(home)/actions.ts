@@ -26,7 +26,7 @@ async function fetchSectionProducts(
   sectionName: string,
 ): Promise<ProductWithMetadata[]> {
   "use cache";
-  cacheLife("frequent");
+  cacheLife("hours");
   cacheTag(CACHE_TAGS.products);
 
   try {

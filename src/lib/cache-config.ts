@@ -3,8 +3,8 @@
  * Defines cache tags for granular cache invalidation with cacheTag()
  *
  * Cache profiles are defined in next.config.ts:
- * - "hours": 1 hour cache (navigation, categories)
- * - "frequent": 5 minutes cache (products, listings)
+ * - "hours": stale after 4 hours, revalidate after 8 hours, expire after 24 hours (products, categories)
+ * - "gallery": stale after 8 hours, revalidate after 16 hours, expire after 24 hours (product galleries)
  * - "daily": 24 hours cache (footer, static content)
  */
 
@@ -30,9 +30,8 @@ export const CACHE_TAGS = {
 
 // Cache life profiles (matching next.config.ts cacheLife)
 export const CACHE_PROFILES = {
-  hours: "hours", // 1 hour - navigation
-  quarter: "quarter", // 15 minutes - categories menu
-  frequent: "frequent", // 5 minutes - products
+  hours: "hours", // Products and categories
+  gallery: "gallery", // Product galleries
   daily: "daily", // 24 hours - footer
 } as const;
 
