@@ -75,7 +75,7 @@ function findTaxonomyIdBySlug(
  */
 export async function getCategoriesStrict(): Promise<UICategory[]> {
   "use cache";
-  cacheLife("quarter");
+  cacheLife("hours");
   cacheTag(CACHE_TAGS.categories, CACHE_TAGS.navigation);
 
   const response = await CategoryServiceApi.findMenu({

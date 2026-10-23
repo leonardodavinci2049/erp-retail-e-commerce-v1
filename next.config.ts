@@ -12,23 +12,17 @@ const nextConfig: NextConfig = {
     ];
   },
   cacheLife: {
-    // Perfil para produtos e listagens (10 minutos)
+    // Perfil para produtos e categorias (stale 4h, revalidate 8h, expire 24h)
     hours: {
-      stale: 600, // 10 min - serve do cache
-      revalidate: 120, // 2 min - revalida em background
-      expire: 600, // 10 min - expira completamente
+      stale: 4 * 60 * 60,
+      revalidate: 8 * 60 * 60,
+      expire: 24 * 60 * 60,
     },
-    // Perfil para menu de categorias (15 minutos)
-    quarter: {
-      stale: 900, // 15 minutos - serve do cache
-      revalidate: 300, // 5 min - revalida em background
-      expire: 900, // 15 minutos - expira completamente
-    },
-    // Perfil para dados que mudam frequentemente (5 minutos)
-    frequent: {
-      stale: 300, // 5 minutos
-      revalidate: 60, // 1 minuto
-      expire: 300,
+    // Perfil para galerias de produtos (stale 8h, revalidate 16h, expire 24h)
+    gallery: {
+      stale: 8 * 60 * 60,
+      revalidate: 16 * 60 * 60,
+      expire: 24 * 60 * 60,
     },
     // Perfil para dados quase estáticos (24 horas)
     daily: {

@@ -186,7 +186,7 @@ export async function getProductsForListing(
   } = {},
 ): Promise<UIProduct[]> {
   "use cache";
-  cacheLife("frequent");
+  cacheLife("hours");
   cacheTag(CACHE_TAGS.products);
 
   const response = await ProductWebServiceApi.findProducts({
@@ -511,7 +511,7 @@ export async function getProductsByTaxonomyForListing(
   stockOnly?: boolean,
 ): Promise<UIProduct[]> {
   "use cache";
-  cacheLife("frequent");
+  cacheLife("hours");
 
   const resolvedCategoryTag =
     taxonomyId && taxonomyId > 0 ? String(taxonomyId) : slugOrId;
